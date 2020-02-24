@@ -4,9 +4,11 @@ from django.apps import apps
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from urlshortner import models
+from urlshortner.serializers import URLSerializer
 from urlshortner.util import encode, decode
 
 
@@ -21,8 +23,14 @@ def redirect_view(request, tiny):
 
 
 class ShortenURL(generics.GenericAPIView):
-    @staticmethod
-    def post(request, *args, **kwargs):
+    serializer_class = URLSerializer
+
+    def post(self, request, *args, **kwargs):
+        try:
+            url_serializer = self.serializer_class(data=request.data)
+            url_serializer.is_valid(raise_exception=True)
+        except ValidationError as v:
+            raise v
         url = str(request.data['url']).strip()
         url = models.Urls.objects.create(url=url)
         url.save()
